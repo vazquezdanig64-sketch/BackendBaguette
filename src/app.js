@@ -10,7 +10,13 @@ import { usuarioRoutes } from "./rutas/usuarios.js";
 const app = express();
 
 // Configurar middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Permite solo a tu frontend de Vite
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(bodyParser.json());
 
 // Configurar rutas de la API
