@@ -12,7 +12,7 @@ const app = express();
 // Configurar middlewares
 app.use(
   cors({
-    origin: "http://localhost:5173", // Permite solo a tu frontend de Vite
+    origin: "frontend-production-4a4a1.up.railway.app", // Permite solo a tu frontend de Vite
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
