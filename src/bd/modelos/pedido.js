@@ -18,6 +18,7 @@ const pedidoSchema = new Schema(
     cliente: {
       type: Schema.Types.ObjectId,
       ref: "usuario",
+      required: true,
     },
     nombre: {
       type: String,

@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  # Servicio de Node.js (Lógica de la App)
+  app-logic:
+    build: .
+    # RESTRICCIÓN DE RED: No usamos "ports" (puertos expuestos al host).
+    # Solo usamos "expose" para que sea visible internamente para Nginx.
+    expose:
+      - "3000"
+    environment:
+      - PORT=3000
+    networks:
+      - backend-network
+
+  # Servicio de Nginx (Servidor Web / Proxy Inverso)
+  web-server:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443" # Solo este servicio es accesible desde tu computadora
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./server.crt:/etc/nginx/certs/server.crt:ro
+      - ./server.key:/etc/nginx/certs/server.key:ro
+    depends_on:
+      - app-logic
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
