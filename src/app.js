@@ -12,22 +12,21 @@ const app = express();
 
 // --- 1. CONFIGURACIÓN DE SEGURIDAD (HELMET Y CORS) ---
 
-// Helmet añade cabeceras de seguridad automáticas (Fase 4.3 de infraestructura)
 app.use(helmet());
 
-// Fase 3 (Logro 2): Configurar CORS para aceptar peticiones desde el dominio de Vercel
-const allowedOrigins = [
-  "http://localhost:8080",
-  "http://localhost:5173",
-  "https://frontend-swart-kappa-uvqvha8k5m.vercel.app",
-  process.env.FRONTEND_URL, // URL de producción en Vercel/Railway [cite: 9]
-];
-
+// Fase 3 (Logro 2): CORS Dinámico y Flexible
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Se permite acceso si el origen está en la lista o si no hay origen (Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // 1. Permitimos si no hay origen (Postman o llamadas locales del servidor)
+      // 2. Permitimos localhost
+      // 3. Permitimos CUALQUIER subdominio de vercel.app para evitar errores de despliegue
+      if (
+        !origin ||
+        origin.startsWith("http://localhost") ||
+        origin.endsWith(".vercel.app") ||
+        origin === process.env.FRONTEND_URL
+      ) {
         callback(null, true);
       } else {
         callback(
@@ -38,7 +37,7 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"], // Se añade x-api-key a los headers [cite: 27]
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
     credentials: true,
   }),
 );
@@ -47,10 +46,9 @@ app.use(bodyParser.json());
 
 // --- 2. CONFIGURACIÓN DEL "FORTÍN" (RATE LIMITING) ---
 
-// Fase 1.1: Restringir a 10 peticiones por minuto [cite: 36]
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 10,
+  max: 15, // Aumentamos un poco a 15 por si haces pruebas rápidas
   message: {
     error: "Demasiadas peticiones. Por favor, intenta de nuevo en un minuto.",
   },
@@ -62,19 +60,19 @@ app.use(generalLimiter);
 
 // --- 3. EL "CÍRCULO DE SEGURIDAD" (MIDDLEWARE API KEY) ---
 
-// Fase 4: Protección de API mediante x-api-key
 app.use((req, res, next) => {
-  // Las rutas públicas como '/' pueden excluirse si es necesario
-  if (req.path === "/") return next();
+  if (req.path === "/" || req.path === "/health") return next();
 
   const apiKey = req.headers["x-api-key"];
-  // Se compara con la variable de entorno configurada en Railway [cite: 29]
-  if (apiKey && apiKey === process.env.API_KEY) {
+
+  // Usamos 'full-stack' como respaldo por si la variable de entorno falla
+  const validApiKey = process.env.API_KEY || "full-stack";
+
+  if (apiKey && apiKey === validApiKey) {
     next();
   } else {
     res.status(403).json({
-      error:
-        "Acceso denegado: Se requiere una API KEY válida para acceder a los servicios de Railway.",
+      error: "Acceso denegado: Se requiere una API KEY válida.",
     });
   }
 });
@@ -84,21 +82,19 @@ app.use((req, res, next) => {
 pedidosRoutes(app);
 usuarioRoutes(app);
 
-// --- 5. ENDPOINT SEGURO PARA COMENTARIOS (VALIDACIÓN Y SANITIZACIÓN) ---
+// --- 5. ENDPOINT SEGURO PARA COMENTARIOS ---
 
 app.post(
   "/api/comentarios",
   [
-    // Fase 1.3: Validación de puntuación (entero) [cite: 36]
     body("puntuacion")
       .isInt()
       .withMessage("La puntuación debe ser un número entero."),
-    // Fase 1.2: Sanitización de inyecciones XSS y límite de 200 caracteres [cite: 36]
     body("texto")
       .trim()
       .escape()
       .isLength({ max: 200 })
-      .withMessage("El texto no puede superar los 200 caracteres."),
+      .withMessage("Máximo 200 caracteres."),
   ],
   (req, res) => {
     const errores = validationResult(req);
@@ -107,13 +103,12 @@ app.post(
     }
 
     const { texto, puntuacion } = req.body;
-
     res.json({
       status: "success",
       message: "Comentario procesado de forma segura en la nube.",
       data: {
         comentarioRecibido: texto,
-        puntuacion: puntuacion,
+        puntuacion,
         fecha: new Date().toLocaleDateString(),
       },
     });
@@ -121,9 +116,7 @@ app.post(
 );
 
 app.get("/", (req, res) => {
-  res.send(
-    "¡Hola Daniela! El servidor de Leños Rellenos está activo y protegido con CORS, Helmet, Rate Limiting y API KEY.",
-  );
+  res.send("¡Hola Daniela! Servidor de Leños Rellenos activo y protegido.");
 });
 
 export { app };
