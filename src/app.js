@@ -19,6 +19,7 @@ app.use(helmet());
 const allowedOrigins = [
   "http://localhost:8080",
   "http://localhost:5173",
+  "https://frontend-swart-kappa-uvqvha8k5m.vercel.app",
   process.env.FRONTEND_URL, // URL de producción en Vercel/Railway [cite: 9]
 ];
 
